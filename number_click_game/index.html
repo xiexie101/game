@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字点击游戏</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 class="title">順序點擊它們</h1>
+            <div class="level-info">
+                <span class="level-text">关卡 1</span>
+            </div>
+        </div>
+
+        <div class="settings-panel">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="normal">普通模式</button>
+                <button class="mode-btn" data-mode="hidden">隐藏数字</button>
+                <button class="mode-btn" data-mode="moving">动态数字</button>
+            </div>
+            
+            <div class="number-count-setting">
+                <label for="number-count">数字个数:</label>
+                <select id="number-count" class="number-count-select">
+                    <option value="3">3个</option>
+                    <option value="5">5个</option>
+                    <option value="7" selected>7个</option>
+                    <option value="9">9个</option>
+                    <option value="12">12个</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="game-content">
+            <div class="target-sequence"></div>
+            <div class="numbers-container" id="numbers-container"></div>
+            <div class="button-group">
+                <button class="action-btn restart-btn">重新來一次</button>
+                <button class="action-btn submit-btn">提交</button>
+                <button class="action-btn next-btn">下一關</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html> 

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仓位管理旭日图 (AI增强版)</title>
+    <!-- 引入 Plotly.js 库 -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- 引入 Tailwind CSS 以便快速美化页面 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字体，并为 body 设置一个柔和的背景色 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* 确保图表容器在加载时有最小高度，避免页面跳动 */
+        #chart {
+            min-height: 60vh;
+        }
+        /* 加载动画样式 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #6366F1;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <!-- 引入 Google Fonts 的 Inter 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="container mx-auto p-4 md:p-8 bg-white rounded-2xl shadow-lg max-w-5xl w-full">
+        <!-- 页面标题 -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">我的投资组合</h1>
+            <p class="text-gray-500 mt-2">通过旭日图可视化资产分布</p>
+        </header>
+
+        <!-- 图表容器 -->
+        <div id="chart" class="w-full h-full"></div>
+
+        <!-- Gemini API 功能区 -->
+        <div class="mt-8 text-center">
+            <button id="analyzeBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                ✨ AI 分析与建议
+            </button>
+        </div>
+
+        <!-- AI 分析结果显示区域 -->
+        <div id="analysisResult" class="mt-6 p-4 md:p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
+            <div id="loader" class="flex justify-center items-center hidden">
+                <div class="loader"></div>
+                <p class="ml-4 text-gray-600">正在为您生成分析报告...</p>
+            </div>
+            <div id="resultText" class="text-gray-700 leading-relaxed"></div>
+        </div>
+
+        <!-- 页面页脚 -->
+        <footer class="text-center mt-8">
+            <p class="text-sm text-gray-400">数据更新于: 2025年8月23日</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { API_KEY } from './keyApi.js';
+        // 准备您的持仓数据
+        const portfolioRawData = {
+            "总览": { "value": 509562.20 },
+            "行业": { "value": 324384.20, "parent": "总览" },
+            "货币": { "value": 150000, "parent": "总览" },
+            "其他波段": { "value": 35178, "parent": "总览" },
+            "医": { "value": 123926.60, "parent": "行业" },
+            "科技": { "value": 75989.00, "parent": "行业" },
+            "消费": { "value": 124468.60, "parent": "行业" },
+            "货币1": { "value": 150000, "parent": "货币" },
+            "其他波段1": { "value": 35178, "parent": "其他波段" },
+            "医疗ETF": { "value": 87010.00, "parent": "医" },
+            "医药": { "value": 30409.60, "parent": "医" },
+            "恒生医疗": { "value": 6507.00, "parent": "医" },
+            "恒生互联": { "value": 62462.40, "parent": "科技" },
+            "恒指科技": { "value": 13393.60, "parent": "科技" },
+            "证券ETF": { "value": 133.00, "parent": "科技" },
+            "恒生消费": { "value": 47279.20, "parent": "消费" },
+            "消费50": { "value": 31893.40, "parent": "消费" },
+            "食品饮料": { "value": 45296.00, "parent": "消费" },
+            "货币2": { "value": 150000, "parent": "货币1" },
+            "其他波段2(半导体/1000/环保)": { "value": 35178, "parent": "其他波段1" },
+        };
+
+        const chartData = [{
+            type: "sunburst",
+            ids: Object.keys(portfolioRawData),
+            labels: Object.keys(portfolioRawData),
+            parents: Object.values(portfolioRawData).map(d => d.parent || ""),
+            values: Object.values(portfolioRawData).map(d => d.value),
+            outsidetextfont: { size: 20, color: "#374151" },
+            leaf: { opacity: 0.6 },
+            marker: { line: { width: 2 } },
+            branchvalues: 'total',
+            // 更新：添加文本和悬停信息模板以显示百分比
+            texttemplate: '%{label}<br>%{percentRoot:.2%}',
+            hovertemplate: '<b>%{label}</b><br>市值: %{value}<br>总占比: %{percentRoot:.2%}<extra></extra>'
+        }];
+        
+        const layout = {
+            margin: { l: 0, r: 0, b: 0, t: 0 },
+            sunburstcolorway: ["#6366F1", "#EC4899", "#22C55E", "#F59E0B", "#3B82F6", "#8B5CF6"],
+            paper_bgcolor: 'white',
+        };
+
+        Plotly.newPlot('chart', chartData, layout, {responsive: true});
+
+        // --- Gemini API 功能实现 ---
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const analysisResult = document.getElementById('analysisResult');
+        const loader = document.getElementById('loader');
+        const resultText = document.getElementById('resultText');
+
+        analyzeBtn.addEventListener('click', getAnalysis);
+
+        // 新增：动态生成 Prompt 字符串的函数
+        function generatePortfolioStringForPrompt(data) {
+            const totalAssets = data["总览"]?.value || 0;
+            let resultString = ` - 总资产: $${totalAssets.toLocaleString()}\n`;
+
+            const topLevelCategories = Object.keys(data).filter(key => data[key].parent === "总览");
+
+            for (const category of topLevelCategories) {
+                const categoryValue = data[category]?.value || 0;
+                resultString += ` - ${category}: $${categoryValue.toLocaleString()}`;
+
+                const subCategories = Object.keys(data).filter(key => data[key].parent === category);
+
+                if (subCategories.length > 0) {
+                    const subCategoryParts = subCategories.map(subKey => {
+                        const subValue = data[subKey]?.value || 0;
+                        return `${subKey}: $${subValue.toLocaleString()}`;
+                    });
+                    resultString += ` (${subCategoryParts.join(', ')})`;
+                }
+                
+                resultString += '\n';
+            }
+            return resultString.trim();
+        }
+
+        async function getAnalysis() {
+            analysisResult.classList.remove('hidden');
+            resultText.innerHTML = '';
+            loader.classList.remove('hidden');
+            analyzeBtn.disabled = true;
+            analyzeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // 优化：动态生成 portfolioString
+            const portfolioString = generatePortfolioStringForPrompt(portfolioRawData);
+
+            const prompt = `请以专业投资顾问的口吻，对以下投资组合进行分析。评估其多元化程度、潜在风险，并提供3-4条具体的改进建议。请使用Markdown格式化您的回答，突出重点。\n\n投资组合详情：\n${portfolioString}`;
+
+            try {
+                const generatedText = await callGemini(prompt);
+                // 将 Markdown 格式的换行符和列表转换为 HTML
+                let htmlResult = generatedText
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\* ([^*]+)/g, '<li class="ml-4 list-disc">$1</li>');
+                resultText.innerHTML = `<ul>${htmlResult}</ul>`;
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                resultText.innerHTML = '<p class="text-red-500">抱歉，分析时遇到错误。请稍后再试。</p>';
+            } finally {
+                loader.classList.add('hidden');
+                analyzeBtn.disabled = false;
+                analyzeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+
+        async function callGemini(prompt) {
+            const apiKey = API_KEY; // API 密钥将由环境自动提供
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{
+                    parts: [{ text: prompt }]
+                }]
+            };
+
+            let response;
+            let result;
+            let retries = 3;
+            let delay = 1000;
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        result = await response.json();
+                        if (result.candidates && result.candidates.length > 0 &&
+                            result.candidates[0].content && result.candidates[0].content.parts &&
+                            result.candidates[0].content.parts.length > 0) {
+                            return result.candidates[0].content.parts[0].text;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                }
+                // 如果请求失败，则等待一段时间后重试
+                if (i < retries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // 指数退避
+                }
+            }
+            throw new Error('Failed to get a valid response from Gemini API after multiple retries.');
+        }
+    </script>
+
+</body>
+</html>
